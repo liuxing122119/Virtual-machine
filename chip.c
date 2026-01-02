@@ -414,3 +414,118 @@ void chip8_decode_execute(Chip8* chip8, uint16_t opcode) {
             return;
     }
 }
+
+// 更新定时器 (每秒60次)
+void chip8_update_timers(Chip8* chip8) {
+    if (chip8->delay_timer > 0) {
+        chip8->delay_timer--;
+    }
+    if (chip8->sound_timer > 0) {
+        chip8->sound_timer--;
+        // 这里可以添加声音播放逻辑 (Day 2实现)
+    }
+}
+
+// 设置按键状态
+void chip8_set_key(Chip8* chip8, uint8_t key, uint8_t state) {
+    if (key < CHIP8_KEY_COUNT) {
+        chip8->keys[key] = state;
+    }
+}
+
+// 检查按键是否被按下
+uint8_t chip8_is_key_pressed(const Chip8* chip8, uint8_t key) {
+    if (key < CHIP8_KEY_COUNT) {
+        return chip8->keys[key];
+    }
+    return 0;
+}
+
+// 绘制精灵到显示缓冲区
+uint8_t chip8_draw_sprite(Chip8* chip8, uint8_t x, uint8_t y, uint8_t height) {
+    uint8_t collision = 0;
+
+    // 限制坐标范围
+    x = x % CHIP8_DISPLAY_WIDTH;
+    y = y % CHIP8_DISPLAY_HEIGHT;
+
+    for (uint8_t row = 0; row < height; row++) {
+        // 获取精灵数据行
+        uint8_t sprite_byte = chip8->memory[chip8->I + row];
+
+        for (uint8_t col = 0; col < 8; col++) {
+            // 检查像素是否设置
+            if (sprite_byte & (0x80 >> col)) {
+                uint16_t pixel_x = (x + col) % CHIP8_DISPLAY_WIDTH;
+                uint16_t pixel_y = (y + row) % CHIP8_DISPLAY_HEIGHT;
+                uint16_t pixel_index = pixel_x + (pixel_y * CHIP8_DISPLAY_WIDTH);
+
+                // 异或操作并检查碰撞
+                if (chip8->display[pixel_index]) {
+                    collision = 1;
+                }
+                chip8->display[pixel_index] ^= 1;
+            }
+        }
+    }
+
+    return collision;
+}
+
+// 清空显示缓冲区
+void chip8_clear_display(Chip8* chip8) {
+    memset(chip8->display, 0, sizeof(chip8->display));
+    chip8->draw_flag = 1;
+}
+
+// 生成随机字节
+uint8_t chip8_get_random_byte(void) {
+    return (uint8_t)(rand() % 256);
+}
+
+// 调试函数：打印寄存器状态
+void chip8_print_registers(const Chip8* chip8) {
+    printf("\n=== CHIP-8 寄存器状态 ===\n");
+    printf("PC: 0x%04X  SP: %d  I: 0x%04X\n", chip8->PC, chip8->SP, chip8->I);
+    printf("DT: %d  ST: %d\n", chip8->delay_timer, chip8->sound_timer);
+    printf("V0-VF:");
+    for (int i = 0; i < 16; i++) {
+        printf(" %02X", chip8->V[i]);
+    }
+    printf("\n");
+}
+
+// 调试函数：打印显示缓冲区
+void chip8_print_display(const Chip8* chip8) {
+    printf("\n=== 显示缓冲区 ===\n");
+    for (int y = 0; y < CHIP8_DISPLAY_HEIGHT; y++) {
+        for (int x = 0; x < CHIP8_DISPLAY_WIDTH; x++) {
+            uint16_t index = x + (y * CHIP8_DISPLAY_WIDTH);
+            printf("%c", chip8->display[index] ? '#' : '.');
+        }
+        printf("\n");
+    }
+}
+
+// 调试函数：打印内存内容
+void chip8_print_memory(const Chip8* chip8, uint16_t start, uint16_t end) {
+    printf("\n=== 内存内容 (0x%04X - 0x%04X) ===\n", start, end);
+    for (uint16_t addr = start; addr <= end; addr += 16) {
+        printf("0x%04X:", addr);
+        for (int i = 0; i < 16 && addr + i <= end; i++) {
+            printf(" %02X", chip8->memory[addr + i]);
+        }
+        printf("\n");
+    }
+}
+
+// 获取ROM大小
+uint16_t chip8_get_rom_size(const Chip8* chip8) {
+    // 简单估算：从0x200开始找到第一个0x0000
+    for (uint16_t addr = 0x200; addr < CHIP8_MEMORY_SIZE - 1; addr += 2) {
+        if (chip8->memory[addr] == 0 && chip8->memory[addr + 1] == 0) {
+            return addr - 0x200;
+        }
+    }
+    return CHIP8_MEMORY_SIZE - 0x200;
+}
