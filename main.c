@@ -1,3 +1,62 @@
+// 菜单渲染函数
+void render_menu(SDL_Renderer* renderer, Tetris* t, MenuItem selected_item, TTF_Font* font) {
+    // 清屏为黑色背景
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_RenderClear(renderer);
+
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    const char* title = "TETRIS";
+    int title_cell = 18;
+    int title_x = 400 - (title_cell * (int)strlen(title)); 
+    int title_y = 100;
+    if (font) ttf_text_draw(renderer, font, title_x, title_y, "俄罗斯方块", (SDL_Color){255,255,255,255});
+    else tetris_draw_text(t, title_x, title_y, title, title_cell);
+
+    // 菜单项（中文标签与英文回退）
+    const char* menu_items[] = { "Start Game" };
+    const char* menu_items_cn[] = { "开始游戏" };
+
+    for (int i = 0; i < MENU_COUNT; i++) {
+        int item_y = 200 + i * 60;
+        int menu_cell = 12;
+        int item_x = 400 - (menu_cell * (int)strlen(menu_items[i])); 
+
+        if (i == selected_item) {        
+            SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);
+            int char_w = 2 * menu_cell;
+            int char_h = 5 * (menu_cell / 3);
+            SDL_Rect highlight = { item_x - 10, item_y - 6, (int)(char_w * strlen(menu_items[i]) + 20), (int)(char_h + 12) };
+            SDL_RenderFillRect(renderer, &highlight);
+            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        } else {
+            SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+        }
+
+        if (font) {
+            int tw, th;
+            if (ttf_text_measure(font, menu_items_cn[i], &tw, &th) == 0) {
+                int cx = 800/2 - tw/2;
+                int cy = item_y;
+                if (i == selected_item) {
+                    SDL_SetRenderDrawColor(renderer, 255,255,0,255);
+                    SDL_Rect hr = { cx - 10, cy - 6, tw + 20, th + 12 };
+                    SDL_RenderFillRect(renderer, &hr);
+                    ttf_text_draw(renderer, font, cx, cy, menu_items_cn[i], (SDL_Color){0,0,0,255});
+                } else {
+                    ttf_text_draw(renderer, font, cx, cy, menu_items_cn[i], (SDL_Color){255,255,255,255});
+                }
+            } else {
+                ttf_text_draw(renderer, font, item_x, item_y, menu_items[i], (SDL_Color){255,255,255,255});
+            }
+        } else {
+            tetris_draw_text(t, item_x, item_y, menu_items[i], menu_cell);
+        }
+    }
+}
+
+
+
+
 int main(int argc, char* argv[]) {
     const TetrisAction keycfg_actions[] = { ACTION_MOVE_LEFT, ACTION_MOVE_RIGHT, ACTION_SOFT_DROP, ACTION_ROTATE, ACTION_HARD_DROP, ACTION_SPEED_UP, ACTION_SPEED_DOWN };
     const char* keycfg_labels[] = { "左移", "右移", "向下加速", "旋转", "硬降", "速度增加", "速度减少" };
@@ -91,3 +150,4 @@ int main(int argc, char* argv[]) {
     SDL_RenderPresent(renderer);
     SDL_Delay(16);
 }
+
