@@ -4,18 +4,6 @@
 #include <ctype.h>
 #include <stdlib.h>
 
-// 简单基于文本的关卡文件格式（行导向）：
-// - key:value 格式的行，可用键：version, level, score, bag
-// - 然后是 "grid:" 行，后跟 TETRIS_HEIGHT 行，每行 TETRIS_WIDTH 个字符（'0'=空，'1'=填充）
-//
-// 示例：
-// version:1
-// level:2
-// score:100
-// bag:0,1,2,3,4,5,6
-// grid:
-// 0000000000
-// ...
 
 // 字符串修剪辅助函数
 // 功能点：
@@ -138,5 +126,6 @@ int tetris_load_level_file(const char* path, Tetris* t, char* errbuf, int errlen
     fclose(f);
     return 0;  // 成功
 }
+
 
 
