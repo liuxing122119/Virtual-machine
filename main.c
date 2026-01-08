@@ -1,3 +1,38 @@
+#include <SDL.h>
+#ifndef SDL_MAIN_HANDLED
+#define SDL_MAIN_HANDLED
+#endif
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include "tetris.h"
+#include "loader.h"
+#include "save_load.h"
+#include "keymap.h"
+#include "ttf_text.h"
+
+/* 帮助界面已移除，相关滚动与测量函数不再需要 */
+
+// 游戏状态枚举
+// - GAME_STATE_MENU: 主菜单界面
+// - GAME_STATE_PLAYING: 游戏进行中
+// - GAME_STATE_PAUSED: 游戏暂停
+// - GAME_STATE_KEY_CONFIG_UI: 图形界面的按键设置（上下选择、回车修改）
+typedef enum {
+    GAME_STATE_MENU,
+    GAME_STATE_PLAYING,
+    GAME_STATE_PAUSED,
+    GAME_STATE_KEY_CONFIG_UI
+} GameState;
+
+// 主菜单选项枚举（只保留“开始游戏”）
+typedef enum {
+    MENU_START_GAME, // 开始游戏
+    MENU_COUNT
+} MenuItem;
+
+
+
 // 菜单渲染函数
 void render_menu(SDL_Renderer* renderer, Tetris* t, MenuItem selected_item, TTF_Font* font) {
     // 清屏为黑色背景
@@ -58,6 +93,77 @@ void render_menu(SDL_Renderer* renderer, Tetris* t, MenuItem selected_item, TTF_
 
 
 int main(int argc, char* argv[]) {
+    int main(int argc, char* argv[]) {
+    (void)argc; (void)argv;
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0) {
+        printf("SDL_Init error: %s\n", SDL_GetError());
+        return 1;
+    }
+    SDL_EventState(SDL_DROPFILE, SDL_ENABLE);
+
+    SDL_Window* window = SDL_CreateWindow("Tetris - Test",
+        SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+        800, 640, SDL_WINDOW_SHOWN);
+    if (!window) {
+        printf("CreateWindow failed: %s\n", SDL_GetError());
+        SDL_Quit();
+        return 1;
+    }
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    if (!renderer) {
+        printf("CreateRenderer failed: %s\n", SDL_GetError());
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return 1;
+    }
+
+    Tetris game;
+    tetris_init(&game, renderer);
+    keymap_init();
+    if (keymap_load("key_config.txt") != 0) {
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Keymap load failed", "Could not load key_config.txt, using defaults", window);
+    }
+
+    // 初始化 TTF（TrueType 字体）并加载用于菜单与模态对话框的中文字体
+    TTF_Font* menu_font = NULL;
+    TTF_Font* modal_font = NULL;
+    if (ttf_text_init() == 0) {
+        const char* font_path = "assets/fonts/AlimamaShuHeiTi-Bold.ttf";
+        menu_font = ttf_text_load_font(font_path, 36);
+        modal_font = ttf_text_load_font(font_path, 20);
+        if (!menu_font) {
+            char warn[256];
+            snprintf(warn, sizeof(warn), "Could not load font '%s'. Menu will use pixel font. Please place a suitable TTF at this path.", font_path);
+            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Font load failed", warn, window);
+        }
+    } else {
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "SDL_ttf init failed", "SDL_ttf could not be initialized. Menu will use pixel font.", window);
+    }
+    // 如果加载了 TTF（TrueType 字体），则禁用 tetris 内置的像素数字 HUD（像素 HUD），使用 TTF 绘制更易读的信息面板
+    if (menu_font) game.draw_default_hud = 0;
+
+    // 初始化游戏状态机与默认选择
+    GameState game_state = GAME_STATE_MENU;
+    MenuItem selected_menu_item = MENU_START_GAME;
+
+    int running = 1;
+    static int selected_slot = 1;
+    // 左侧按钮相关状态（仅用于绘制与键盘选择反馈）
+    int left_hover = -1;
+    int left_selected = -1;
+    const char* left_labels_cn[] = { "保存存档", "读取存档", "按键设置", "关卡选择" };
+    int left_count = 4;
+    const char* sample_levels[] = { "roms/level_easy.tetrislvl", "roms/level_medium.tetrislvl", "roms/level_hard.tetrislvl" };
+    int sample_level_index = 0;
+    // 保存/读取模态对话框的运行态变量
+    int show_save_dialog = 0;
+    int show_load_dialog = 0;
+    int dialog_hover_slot = -1;
+    int dialog_hover_delete = -1;
+    int show_level_dialog = 0;
+    const int SAVE_SLOTS = 5;
+         int keycfg_selected = 0;
+    int keycfg_editing = 0;
     const TetrisAction keycfg_actions[] = { ACTION_MOVE_LEFT, ACTION_MOVE_RIGHT, ACTION_SOFT_DROP, ACTION_ROTATE, ACTION_HARD_DROP, ACTION_SPEED_UP, ACTION_SPEED_DOWN };
     const char* keycfg_labels[] = { "左移", "右移", "向下加速", "旋转", "硬降", "速度增加", "速度减少" };
     const int KEYCFG_COUNT = sizeof(keycfg_actions) / sizeof(keycfg_actions[0]);
@@ -149,5 +255,13 @@ int main(int argc, char* argv[]) {
     }
     SDL_RenderPresent(renderer);
     SDL_Delay(16);
+}
+ if (menu_font) ttf_text_free_font(menu_font);
+    if (modal_font) ttf_text_free_font(modal_font);
+    ttf_text_quit();
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
+    return 0;
 }
 
